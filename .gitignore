@@ -1,0 +1,52 @@
+# Visual Studio environment files
+.vs/
+.vscode/
+*.VC.db
+*.VC.VC.opendb
+
+# Build directories and other stuff
+[Bb]in/
+[Oo]bj/
+x64/
+x86/
+build/
+Debug/
+Release/
+ipch/
+*.idb
+*.pdb
+*.ilk
+*.log
+*.tlog/
+*.lastbuildstate
+
+# Compiled files
+*.exe
+*.dll
+*.lib
+*.obj
+*.exp
+*.manifest
+
+# User-related unnecessary files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# IntelliSense and other temp files
+*.opensdf
+*.sdf
+*.cache
+*.dbmdl
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.swp
+*.DS_Store
+
+# Package manager folders
+packages/
