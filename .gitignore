@@ -29,10 +29,12 @@ ipch/
 *.manifest
 
 # User-related unnecessary files
-*.user
-*.filters
-*.suo
-*.userosscache
+./base/base.vcxproj.filters
+./base/base.vcxproj.user
+**/*.user
+**/*.filters
+**/*.suo
+**/*.userosscache
 *.sln.docstates
 
 # IntelliSense and other temp files
