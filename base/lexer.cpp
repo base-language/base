@@ -1,240 +1,163 @@
 #include "lexer.hpp"
-
 #include <iostream>
 #include <cctype>
+#include <stdexcept>
 
 const std::unordered_set<std::string> Lexer::keywords = {
-    // Variable and function declarations
-    "let", "const", "var", "function", "return",
-
-    // Types and type descriptions
-    "number", "string", "boolean", "void", "any", "unknown", "never", "object", "array", "tuple", "enum", "interface", "type",
-
-    // Control structures
-    "if", "else", "switch", "case", "default",
-    "for", "while", "do", "break", "continue",
-    "try", "catch", "finally", "throw",
-
-    // Logic and other expressions
-    "true", "false", "null", "undefined", "this", "new", "delete", "typeof", "instanceof", "in", "await", "async", "yield",
-
-    // Diğer önemli kelimeler
-    "class", "extends", "implements", "export", "import", "from", "as", "namespace", "public", "private", "protected", "readonly", "static",
-
-    // Built-in functions
-    "print"};
+    "let", "const", "function", "return",
+    "number", "string", "void",
+    "if", "else", "for", "while", "break", "continue", "print"
+};
 
 Lexer::Lexer(const std::string &src) : source(src) {}
 
-char Lexer::peekChar() const
-{
-    if (pos >= source.size())
-        return '\0';
+char Lexer::peekChar() const {
+    if (pos >= source.size()) return '\0';
     return source[pos];
 }
-char Lexer::peekNextChar() const
-{
-    if (pos + 1 >= source.size())
-        return '\0';
+char Lexer::peekNextChar() const {
+    if (pos + 1 >= source.size()) return '\0';
     return source[pos + 1];
 }
-char Lexer::advanceChar()
-{
+char Lexer::advanceChar() {
     char c = peekChar();
-    if (c == '\n')
-        line++;
     pos++;
+    if (c == '\n') line++;
     return c;
 }
-void Lexer::skipWhitespaceAndComments()
-{
-    while (true)
-    {
+void Lexer::skipWhitespaceAndComments() {
+    while (true) {
         char c = peekChar();
-        // Whitespace
-        if (isspace(c))
-        {
+        if (c == '\0') break;
+        if (isspace(static_cast<unsigned char>(c))) {
             advanceChar();
             continue;
         }
-        if (c == '/' && peekNextChar() == '/')
-        {
-            advanceChar(); // '/'
-            advanceChar(); // '/'
-            while (peekChar() != '\n' && peekChar() != '\0')
-            {
-                advanceChar();
-            }
+        if (c == '/' && peekNextChar() == '/') {
+            advanceChar(); advanceChar();
+            while (peekChar() != '\n' && peekChar() != '\0') advanceChar();
             continue;
         }
-        if (c == '/' && peekNextChar() == '*')
-        {
-            advanceChar(); // '/'
-            advanceChar(); // '*'
-            while (true)
-            {
+        if (c == '/' && peekNextChar() == '*') {
+            advanceChar(); advanceChar();
+            while (true) {
                 char ch = peekChar();
-                if (ch == '\0')
-                {
-                    std::cerr << "Lexer error: Unterminated block comment at line " << line << "\n";
-                    return;
-                }
-                if (ch == '*' && peekNextChar() == '/')
-                {
-                    advanceChar(); // '*'
-                    advanceChar(); // '/'
+                if (ch == '\0') return;
+                if (ch == '*' && peekNextChar() == '/') {
+                    advanceChar(); advanceChar();
                     break;
                 }
                 advanceChar();
             }
             continue;
         }
-
         break;
     }
 }
-Token Lexer::readIdentifierOrKeyword()
-{
+Token Lexer::readIdentifierOrKeyword() {
     std::string value;
     char c = peekChar();
-    // Identifier: starts with letter or _, then letters, digits, _
-    while (isalnum(c) || c == '_')
-    {
+    while (isalnum(static_cast<unsigned char>(c)) || c == '_') {
         value += advanceChar();
         c = peekChar();
     }
     if (keywords.count(value))
-    {
         return {TokenTypeEnum::Keyword, value, line};
-    }
     return {TokenTypeEnum::Identifier, value, line};
 }
-Token Lexer::readNumber()
-{
+Token Lexer::readNumber() {
     std::string value;
     bool hasDot = false;
-    bool hasExp = false;
     char c = peekChar();
-    while (true)
-    {
-        if (isdigit(c))
-        {
-            value += advanceChar();
-        }
-        else if (c == '.' && !hasDot)
-        {
-            hasDot = true;
-            value += advanceChar();
-        }
-        else if ((c == 'e' || c == 'E') && !hasExp)
-        {
-            hasExp = true;
-            value += advanceChar();
-            // exponent can be followed by optional + or -
-            char next = peekChar();
-            if (next == '+' || next == '-')
-            {
-                value += advanceChar();
-            }
-        }
-        else
-        {
-            break;
-        }
+    while (isdigit(static_cast<unsigned char>(c)) || (c == '.' && !hasDot)) {
+        if (c == '.') hasDot = true;
+        value += advanceChar();
         c = peekChar();
     }
     return {TokenTypeEnum::Number, value, line};
 }
-Token Lexer::readString()
-{
-    advanceChar(); // skip opening quote
+Token Lexer::readString() {
+    char opener = peekChar();
+    if (opener != '"') throw std::runtime_error("readString called on non-\" at line " + std::to_string(line));
+    advanceChar();
     std::string value;
-    while (true)
-    {
+    while (true) {
         char c = peekChar();
-        if (c == '\0')
-        {
-            std::cerr << "Lexer error: Unterminated string at line " << line << "\n";
-            break;
-        }
-        if (c == '"')
-        {
-            advanceChar(); // skip closing quote
-            break;
-        }
-        if (c == '\\')
-        {
+        if (c == '\0') break;
+        if (c == '\n') throw std::runtime_error("Multi-line string not allowed with double quotes at line " + std::to_string(line));
+        if (c == '"') { advanceChar(); break; }
+        if (c == '\\') {
             advanceChar();
             char esc = peekChar();
-            switch (esc)
-            {
-            case 'n':
-                value += '\n';
-                break;
-            case 't':
-                value += '\t';
-                break;
-            case 'r':
-                value += '\r';
-                break;
-            case '"':
-                value += '"';
-                break;
-            case '\\':
-                value += '\\';
-                break;
-            default:
-                std::cerr << "Lexer warning: Unknown escape sequence \\" << esc << " at line " << line << "\n";
-                value += esc;
+            switch (esc) {
+                case 'n': value += '\n'; break;
+                case 't': value += '\t'; break;
+                case 'r': value += '\r'; break;
+                case '"': value += '"'; break;
+                case '\\': value += '\\'; break;
+                default: value += esc;
             }
             advanceChar();
-        }
-        else
-        {
+        } else {
             value += advanceChar();
         }
     }
     return {TokenTypeEnum::String, value, line};
 }
-Token Lexer::readSymbol()
-{
-    std::string twoCharSym;
-    twoCharSym += peekChar();
-    twoCharSym += peekNextChar();
-    static const std::unordered_set<std::string> multiCharSymbols = {
-        "==", "!=", "<=", ">=", "&&", "||", "+=", "-=", "*=", "/=", "%=", "++", "--", ">>", "<<"};
-    if (pos + 1 < source.size() && multiCharSymbols.count(twoCharSym))
-    {
-        pos += 2;
-        return {TokenTypeEnum::Symbol, twoCharSym, line};
+Token Lexer::readTemplateLiteral() {
+    advanceChar(); // skip `
+    std::string value;
+    int startLine = line;
+    while (true) {
+        char c = peekChar();
+        if (c == '\0') break;
+        if (c == '`') { advanceChar(); break; }
+        if (c == '\\') {
+            advanceChar();
+            char esc = peekChar();
+            if (esc == 'n') value += '\n';
+            else if (esc == 't') value += '\t';
+            else if (esc == 'r') value += '\r';
+            else value += esc;
+            advanceChar();
+            continue;
+        }
+        value += advanceChar();
     }
-    else
-    {
-        char c = advanceChar();
-        return {TokenTypeEnum::Symbol, std::string(1, c), line};
-    }
+    return {TokenTypeEnum::TemplateLiteral, value, startLine};
 }
-Token Lexer::nextToken()
-{
+Token Lexer::readSymbol() {
+    std::string two;
+    char a = peekChar();
+    char b = peekNextChar();
+    two += a; two += b;
+    static const std::unordered_set<std::string> twoChar = {
+        "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=", "++", "--"
+    };
+    if (twoChar.count(two)) {
+        pos += 2;
+        return {TokenTypeEnum::Symbol, two, line};
+    }
+    char c = advanceChar();
+    return {TokenTypeEnum::Symbol, std::string(1, c), line};
+}
+Token Lexer::nextToken() {
     skipWhitespaceAndComments();
     char c = peekChar();
-    if (c == '\0')
-        return {TokenTypeEnum::EndOfFile, "", line};
-    if (isalpha(c) || c == '_')
+    if (c == '\0') return {TokenTypeEnum::EndOfFile, "", line};
+    if (isalpha(static_cast<unsigned char>(c)) || c == '_')
         return readIdentifierOrKeyword();
-    if (isdigit(c))
+    if (isdigit(static_cast<unsigned char>(c)))
         return readNumber();
     if (c == '"')
         return readString();
-    if (c == '-')
-        return readSymbol();
+    if (c == '`')
+        return readTemplateLiteral();
+    if (c == '\'')
+        throw std::runtime_error("Single-quote strings not allowed in BASE at line " + std::to_string(line));
     return readSymbol();
 }
-Token Lexer::peekToken() const
-{
-    size_t savedPos = pos;
-    int savedLine = line;
+Token Lexer::peekToken() const {
     Lexer temp = *this;
-    Token t = temp.nextToken();
-    return t;
+    return temp.nextToken();
 }

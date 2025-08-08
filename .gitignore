@@ -30,6 +30,7 @@ ipch/
 
 # User-related unnecessary files
 *.user
+*.filters
 *.suo
 *.userosscache
 *.sln.docstates

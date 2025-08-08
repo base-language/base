@@ -4,6 +4,7 @@
 
 enum class TokenTypeEnum {
     Identifier,
+    TemplateLiteral,
     Number,
     String,
     Keyword,
